@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+
+# Mac
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Backup files
+*.backup
+*.backup2
+*.old
+
+# Temp files
+tempCodeRunnerFile.py
+
+# Output
+*.png
+demo/nutrition_analysis.png
+
+# LaTeX
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+*.pdf
+!figures/*.png
+!figures/*.jpg
