@@ -104,7 +104,47 @@ class MealPlanner:
             
             if meal_data['status'] == 'optimal':
                 for food in meal_data['foods']:
-                    print(f"  - {food['name']}: {food['amount_g']}g")
+                    # Get display unit from database
+                    food_info = self.foods_df[
+                        self.foods_df['food_id'] == food['food_id']
+                    ].iloc[0]
+                    
+                    display_unit = food_info.get('display_unit', '')
+                    
+                    # Format display
+                    amount_str = f"{food['amount_g']}g"
+                    
+                    if display_unit and isinstance(display_unit, str) and display_unit.strip():
+                        # Parse display_unit (e.g., "egg:50" or "tbsp:15")
+                        parts = display_unit.split(':')
+                        if len(parts) == 2:
+                            unit_name = parts[0]
+                            unit_weight = float(parts[1])
+                            count = food['amount_g'] / unit_weight
+                            
+                            # Format unit name
+                            if count > 1.5:
+                                count_int = round(count)
+                            else:
+                                count_int = round(count, 1)
+                            
+                            # Plural forms
+                            if unit_name == 'egg':
+                                unit_display = f"{count_int} {'egg' if count_int == 1 else 'eggs'}"
+                            elif unit_name == 'tbsp':
+                                unit_display = f"{count_int} tbsp"
+                            elif unit_name == 'piece':
+                                unit_display = f"{count_int} {'piece' if count_int == 1 else 'pieces'}"
+                            elif unit_name == 'slice':
+                                unit_display = f"{count_int} {'slice' if count_int == 1 else 'slices'}"
+                            elif unit_name == 'cup':
+                                unit_display = f"{count_int} {'cup' if count_int == 1 else 'cups'}"
+                            else:
+                                unit_display = f"{count_int} {unit_name}"
+                            
+                            amount_str = f"{food['amount_g']}g ({unit_display})"
+                    
+                    print(f"  - {food['name']}: {amount_str}")
                     print(f"    Cal: {food['calories']:.1f}, "
                           f"P: {food['protein']:.1f}g, "
                           f"C: {food['carbs']:.1f}g, "
