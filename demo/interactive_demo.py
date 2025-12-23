@@ -107,12 +107,14 @@ class NutritionDemo:
             target = targets[metric]
             actual = grand_total[metric]
             diff = actual - target
-            percentage = (actual / target * 100) if target > 0 else 0
+            
+            # Calculate deviation percentage
+            deviation = ((actual - target) / target * 100) if target > 0 else 0
             
             print(f"{metric.capitalize():10s}: "
                   f"Target: {target:7.1f} | "
                   f"Actual: {actual:7.1f} | "
-                  f"Diff: {diff:+7.1f} ({percentage:.1f}%)")
+                  f"Diff: {diff:+7.1f} ({deviation:+.1f}%)")
         print("-" * 60)
     
     def visualize_results(self, plan, targets):
