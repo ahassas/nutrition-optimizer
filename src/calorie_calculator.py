@@ -221,9 +221,9 @@ class CalorieCalculator:
             print("="*60)
             
             goal_names = {
-                'weight_loss': '🔥 Weight Loss',
-                'maintenance': '⚖️  Maintenance',
-                'muscle_gain': '💪 Muscle Gain'
+                'weight_loss': 'Weight Loss',
+                'maintenance': 'Maintenance',
+                'muscle_gain': 'Muscle Gain'
             }
             
             print(f"\nGoal: {goal_names[goal]}")

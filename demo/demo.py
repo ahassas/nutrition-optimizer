@@ -14,6 +14,49 @@ from calorie_calculator import CalorieCalculator
 import matplotlib.pyplot as plt
 import numpy as np
 
+# Import validation
+try:
+    from utils.validation import validate_custom_targets, validate_bmi_inputs
+except ImportError:
+    # If validation module doesn't exist, create simple validators
+    def validate_custom_targets(calories, protein, carbs, fat):
+        min_calories_from_macros = (protein * 4) + (carbs * 4) + (fat * 9)
+        
+        if calories < 500:
+            return False, "\nWARNING: Calorie target is very low (< 500 kcal)\n    Minimum recommended: 1200-1500 kcal"
+        
+        if min_calories_from_macros > calories * 1.2:
+            return False, (
+                f"\nERROR: Macronutrients don't match calorie target!\n"
+                f"    Your macros require ~{min_calories_from_macros:.0f} kcal\n"
+                f"    But you entered {calories:.0f} kcal\n"
+                f"\n    Tip: Use option 1 (BMI calculator) for balanced targets"
+            )
+        
+        if min_calories_from_macros < calories * 0.7:
+            return False, (
+                f"\nWARNING: Macronutrients too low for calorie target\n"
+                f"    Your macros only provide ~{min_calories_from_macros:.0f} kcal"
+            )
+        
+        if protein < 30 or carbs < 50 or fat < 20:
+            return False, "\nWARNING: Some macros are too low (min: 30g P, 50g C, 20g F)"
+        
+        if protein > 400 or carbs > 600 or fat > 200 or calories > 5000:
+            return False, "\nWARNING: Some values are very high"
+        
+        return True, None
+    
+    def validate_bmi_inputs(weight, height, age):
+        if weight < 30 or weight > 300:
+            return False, "\nERROR: Weight must be between 30-300 kg"
+        if height < 100 or height > 250:
+            return False, "\nERROR: Height must be between 100-250 cm"
+        if age < 15 or age > 100:
+            return False, "\nERROR: Age must be between 15-100 years"
+        return True, None
+
+
 class NutritionDemo:
     """Interactive demo for nutrition optimization"""
     
@@ -34,24 +77,48 @@ class NutritionDemo:
         print()
     
     def get_user_targets(self):
-        """Get nutritional targets from user"""
-        print("\nEnter your daily nutritional targets:\n")
+        """Get nutritional targets from user with validation"""
+        max_attempts = 3
+        attempt = 0
         
-        try:
-            calories = float(input("  Daily Calories (e.g., 2000): "))
-            protein = float(input("  Daily Protein in grams (e.g., 150): "))
-            carbs = float(input("  Daily Carbs in grams (e.g., 200): "))
-            fat = float(input("  Daily Fat in grams (e.g., 65): "))
+        while attempt < max_attempts:
+            print("\nEnter your daily nutritional targets:")
             
-            return {
-                'calories': calories,
-                'protein': protein,
-                'carbs': carbs,
-                'fat': fat
-            }
-        except ValueError:
-            print("Invalid input! Please enter numbers only.")
-            return None
+            try:
+                calories = float(input("  Daily Calories (e.g., 2000): "))
+                protein = float(input("  Daily Protein in grams (e.g., 150): "))
+                carbs = float(input("  Daily Carbs in grams (e.g., 200): "))
+                fat = float(input("  Daily Fat in grams (e.g., 65): "))
+                
+                # Validate inputs
+                is_valid, error_msg = validate_custom_targets(calories, protein, carbs, fat)
+                
+                if not is_valid:
+                    print(error_msg)
+                    attempt += 1
+                    if attempt < max_attempts:
+                        print(f"\nAttempt {attempt}/{max_attempts}. Please try again.")
+                        continue
+                    else:
+                        print("\nMaximum attempts reached. Returning to menu.")
+                        return None
+                
+                # Valid targets
+                return {
+                    'calories': calories,
+                    'protein': protein,
+                    'carbs': carbs,
+                    'fat': fat
+                }
+                
+            except ValueError:
+                print("\nInvalid input! Please enter numeric values only.")
+                attempt += 1
+                if attempt >= max_attempts:
+                    print("\nMaximum attempts reached. Returning to menu.")
+                    return None
+        
+        return None
     
     def show_preset_options(self):
         """Show preset meal plans"""
@@ -77,7 +144,7 @@ class NutritionDemo:
     def optimize_meals(self, targets):
         """Run optimization"""
         print("\nOptimizing your meal plan...")
-        print("This may take a few seconds...\n")
+        print("This may take a few seconds...")
         
         plan = self.planner.create_daily_plan(
             daily_calories=targets['calories'],
@@ -90,6 +157,22 @@ class NutritionDemo:
     
     def display_results(self, plan, targets):
         """Display optimization results"""
+        
+        # Check if plan is valid
+        if not plan or all(meal_data.get('status') != 'optimal' for meal_data in plan.values()):
+            print("\n" + "="*60)
+            print("OPTIMIZATION FAILED")
+            print("="*60)
+            print("\nCould not generate a feasible meal plan.")
+            print("This usually means:")
+            print("  - Targets are too strict or contradictory")
+            print("  - Macro/calorie balance doesn't match available foods")
+            print("\nTry:")
+            print("  - Using preset plans (option 2)")
+            print("  - Using BMI calculator (option 1)")
+            print("  - Adjusting your custom targets")
+            return False
+        
         self.planner.print_daily_plan(plan)
         
         # Calculate accuracy
@@ -100,8 +183,9 @@ class NutritionDemo:
                 for key in grand_total:
                     grand_total[key] += meal_data['totals'][key]
         
-        print("\nTARGET vs ACTUAL:")
-        print("-" * 60)
+        print("\n" + "="*60)
+        print("TARGET vs ACTUAL:")
+        print("="*60)
         metrics = ['calories', 'protein', 'carbs', 'fat']
         for metric in metrics:
             target = targets[metric]
@@ -115,7 +199,9 @@ class NutritionDemo:
                   f"Target: {target:7.1f} | "
                   f"Actual: {actual:7.1f} | "
                   f"Diff: {diff:+7.1f} ({deviation:+.1f}%)")
-        print("-" * 60)
+        print("="*60)
+        
+        return True
     
     def visualize_results(self, plan, targets):
         """Create visualization of results"""
@@ -130,6 +216,10 @@ class NutritionDemo:
                 meal_totals[meal_name] = meal_data['totals']
                 for key in grand_total:
                     grand_total[key] += meal_data['totals'][key]
+        
+        if not meal_totals:
+            print("No valid meals to visualize")
+            return
         
         # Create figure with subplots
         fig, axes = plt.subplots(2, 2, figsize=(14, 10))
@@ -188,6 +278,8 @@ class NutritionDemo:
         
         plt.tight_layout()
         
+        # Create output directory if it doesn't exist
+        os.makedirs('demo', exist_ok=True)
         output_path = 'demo/nutrition_analysis.png'
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
         print(f"Visualization saved to: {output_path}")
@@ -236,6 +328,7 @@ class NutritionDemo:
             
             elif choice == '4':
                 print("\nThank you for using Nutrition Optimizer!")
+                print("Stay healthy!")
                 break
             
             else:
@@ -255,20 +348,41 @@ class NutritionDemo:
             plan = self.optimize_meals(targets)
             
             # Display
-            self.display_results(plan, targets)
+            success = self.display_results(plan, targets)
+            
+            if not success:
+                # Failed to generate plan, ask if want to try again
+                retry = input("\nTry different targets? (y/n): ").lower().strip()
+                if retry != 'y':
+                    print("\nThank you for using Nutrition Optimizer!")
+                    print("Stay healthy!")
+                    break
+                else:
+                    continue
             
             # Visualize
             viz = input("\nGenerate visualization? (y/n): ").lower().strip()
             if viz == 'y':
-                self.visualize_results(plan, targets)
+                try:
+                    self.visualize_results(plan, targets)
+                except Exception as e:
+                    print(f"Could not generate visualization: {e}")
             
             # Again?
             again = input("\nCreate another plan? (y/n): ").lower().strip()
             if again != 'y':
                 print("\nThank you for using Nutrition Optimizer!")
+                print("Stay healthy!")
                 break
 
 
 if __name__ == "__main__":
-    demo = NutritionDemo()
-    demo.run()
+    try:
+        demo = NutritionDemo()
+        demo.run()
+    except KeyboardInterrupt:
+        print("\n\nInterrupted by user. Exiting...")
+    except Exception as e:
+        print(f"\nUnexpected error: {e}")
+        import traceback
+        traceback.print_exc()
